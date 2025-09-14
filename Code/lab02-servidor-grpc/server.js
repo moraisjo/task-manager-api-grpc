@@ -64,7 +64,7 @@ class GrpcServer {
             await this.initialize();
 
             const serverCredentials = grpc.ServerCredentials.createInsecure();
-            
+
             this.server.bindAsync(`0.0.0.0:${port}`, serverCredentials, (error, boundPort) => {
                 if (error) {
                     console.error('❌ Falha ao iniciar servidor:', error);
