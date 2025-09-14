@@ -162,12 +162,15 @@ class DataStore {
   }
 
   // Initialize with some sample data
-  init() {
-    // Create sample users
+  async init() {
+    // Create sample users with properly hashed passwords
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.hash('password', 10);
+    
     const user1 = this.createUser({
       id: '',
       username: 'admin',
-      password: '$2a$10$rOH.FVjBHnVVBUaJ3Hph2eGmOEqJtOKl9PX7V3VzqKbJfVqkYgKsG', // 'password' hashed
+      password: hashedPassword,
       email: 'admin@example.com',
       full_name: 'System Administrator',
       created_at: new Date(),
@@ -176,7 +179,7 @@ class DataStore {
     const user2 = this.createUser({
       id: '',
       username: 'user1',
-      password: '$2a$10$rOH.FVjBHnVVBUaJ3Hph2eGmOEqJtOKl9PX7V3VzqKbJfVqkYgKsG', // 'password' hashed
+      password: hashedPassword,
       email: 'user1@example.com',
       full_name: 'John Doe',
       created_at: new Date(),
@@ -216,4 +219,8 @@ class DataStore {
 }
 
 export const dataStore = new DataStore();
-dataStore.init();
+
+// Initialize with sample data
+(async () => {
+  await dataStore.init();
+})();

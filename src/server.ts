@@ -3,6 +3,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 import { TaskServiceImpl } from './services/taskService';
 import { AuthServiceImpl } from './services/authService';
+import { dataStore } from './utils/dataStore';
 import logger from './utils/logger';
 
 const PROTO_PATH = path.join(__dirname, '../proto/task_manager.proto');
@@ -49,7 +50,10 @@ export class GrpcServer {
     logger.info('gRPC services registered successfully');
   }
 
-  public start(): Promise<void> {
+  public async start(): Promise<void> {
+    // Wait for data store to be initialized
+    await dataStore.init();
+    
     return new Promise((resolve, reject) => {
       this.server.bindAsync(
         `0.0.0.0:${this.port}`,

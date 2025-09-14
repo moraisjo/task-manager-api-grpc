@@ -7,6 +7,7 @@
     "build": "tsc",
     "dev": "ts-node src/server.ts",
     "start": "node dist/server.js",
+    "demo": "ts-node src/demo.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "proto:generate": "echo 'Using runtime proto loading with @grpc/proto-loader'",
