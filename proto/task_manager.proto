@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package taskmanager;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Task status enumeration
+enum TaskStatus {
+  PENDING = 0;
+  IN_PROGRESS = 1;
+  COMPLETED = 2;
+  CANCELLED = 3;
+}
+
+// Task priority enumeration
+enum TaskPriority {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+  URGENT = 3;
+}
+
+// Task message
+message Task {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  TaskStatus status = 4;
+  TaskPriority priority = 5;
+  string assignee_id = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  google.protobuf.Timestamp due_date = 9;
+  repeated string tags = 10;
+}
+
+// Request messages
+message CreateTaskRequest {
+  string title = 1;
+  string description = 2;
+  TaskPriority priority = 3;
+  string assignee_id = 4;
+  google.protobuf.Timestamp due_date = 5;
+  repeated string tags = 6;
+}
+
+message GetTaskRequest {
+  string id = 1;
+}
+
+message UpdateTaskRequest {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  TaskStatus status = 4;
+  TaskPriority priority = 5;
+  string assignee_id = 6;
+  google.protobuf.Timestamp due_date = 7;
+  repeated string tags = 8;
+}
+
+message DeleteTaskRequest {
+  string id = 1;
+}
+
+message ListTasksRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  TaskStatus status_filter = 3;
+  TaskPriority priority_filter = 4;
+  string assignee_filter = 5;
+}
+
+message ListTasksResponse {
+  repeated Task tasks = 1;
+  int32 total_count = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// Streaming messages
+message TaskUpdate {
+  enum UpdateType {
+    CREATED = 0;
+    UPDATED = 1;
+    DELETED = 2;
+  }
+  
+  UpdateType type = 1;
+  Task task = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message SubscribeTaskUpdatesRequest {
+  string user_id = 1;
+  repeated string task_ids = 2; // Optional: subscribe to specific tasks
+}
+
+// Authentication messages
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// User messages
+message User {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+  string full_name = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string password = 2;
+  string email = 3;
+  string full_name = 4;
+}
+
+// Task Management Service
+service TaskService {
+  // CRUD operations
+  rpc CreateTask(CreateTaskRequest) returns (Task);
+  rpc GetTask(GetTaskRequest) returns (Task);
+  rpc UpdateTask(UpdateTaskRequest) returns (Task);
+  rpc DeleteTask(DeleteTaskRequest) returns (google.protobuf.Empty);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  
+  // Real-time streaming
+  rpc SubscribeTaskUpdates(SubscribeTaskUpdatesRequest) returns (stream TaskUpdate);
+}
+
+// Authentication Service
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (LoginResponse);
+  rpc CreateUser(CreateUserRequest) returns (User);
+}
