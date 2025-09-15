@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package chat;
+
+service ChatService {
+  // Cliente envia 1..N mensagens; servidor responde um Ack
+  rpc SendMessage (stream ChatMessage) returns (Ack);
+  // Servidor envia mensagens em tempo real para cada assinante
+  rpc ReceiveMessages (Empty) returns (stream ChatMessage);
+}
+
+message ChatMessage {
+  string user = 1;
+  string text = 2;
+  int64 timestamp = 3; // epoch millis
+}
+
+message Empty {}
+
+message Ack {
+  bool ok = 1;
+  string info = 2;
+}

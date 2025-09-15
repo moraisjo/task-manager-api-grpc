@@ -71,7 +71,8 @@ class TaskService {
             callback(null, {
                 success: true,
                 message: 'Tarefa criada com sucesso',
-                task: task.toProtobuf()
+                task: task.toProtobuf(),
+                serverPort: process.env.GRPC_PORT || 50051   
             });
         } catch (error) {
             console.error('Erro ao criar tarefa:', error);
@@ -119,7 +120,8 @@ class TaskService {
                 tasks: tasks,
                 total: result.total,
                 page: result.page,
-                limit: result.limit
+                limit: result.limit,
+                serverPort: process.env.GRPC_PORT || 50051
             });
         } catch (error) {
             console.error('Erro ao buscar tarefas:', error);
@@ -154,7 +156,8 @@ class TaskService {
             callback(null, {
                 success: true,
                 message: 'Tarefa encontrada',
-                task: task.toProtobuf()
+                task: task.toProtobuf(),
+                serverPort: process.env.GRPC_PORT || 50051
             });
         } catch (error) {
             console.error('Erro ao buscar tarefa:', error);
@@ -219,7 +222,8 @@ class TaskService {
             callback(null, {
                 success: true,
                 message: 'Tarefa atualizada com sucesso',
-                task: task.toProtobuf()
+                task: task.toProtobuf(),
+                serverPort: process.env.GRPC_PORT || 50051
             });
         } catch (error) {
             console.error('Erro ao atualizar tarefa:', error);
@@ -269,7 +273,8 @@ class TaskService {
 
             callback(null, {
                 success: true,
-                message: 'Tarefa deletada com sucesso'
+                message: 'Tarefa deletada com sucesso',
+                serverPort: process.env.GRPC_PORT || 50051
             });
         } catch (error) {
             console.error('Erro ao deletar tarefa:', error);

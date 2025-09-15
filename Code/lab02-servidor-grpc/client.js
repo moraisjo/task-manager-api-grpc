@@ -2,15 +2,13 @@ const grpc = require('@grpc/grpc-js');
 const ProtoLoader = require('./utils/protoLoader');
 
 /**
- * Cliente gRPC de Exemplo
- * 
- * Demonstra como consumir serviços gRPC de forma eficiente,
- * incluindo streaming de dados em tempo real
+ * Cliente gRPC configurado para NGINX load balancing
  */
 
 class GrpcClient {
-    constructor(serverAddress = 'localhost:50051') {
-        this.serverAddress = serverAddress;
+    constructor(taskServerAddress = 'localhost:5000', authServerAddress = 'localhost:50051') {
+        this.taskServerAddress = taskServerAddress; // NGINX
+        this.authServerAddress = authServerAddress; // Backend direto ou outro proxy
         this.protoLoader = new ProtoLoader();
         this.authClient = null;
         this.taskClient = null;
@@ -23,27 +21,27 @@ class GrpcClient {
             const authProto = this.protoLoader.loadProto('auth_service.proto', 'auth');
             const taskProto = this.protoLoader.loadProto('task_service.proto', 'tasks');
 
-            // Criar clientes
             const credentials = grpc.credentials.createInsecure();
-            
-            this.authClient = new authProto.AuthService(this.serverAddress, credentials);
-            this.taskClient = new taskProto.TaskService("localhost:5000", credentials);
 
-            console.log('✅ Cliente gRPC inicializado');
+            this.authClient = new authProto.AuthService(this.authServerAddress, credentials);
+            this.taskClient = new taskProto.TaskService(this.taskServerAddress, credentials);
+
+            console.log(`✅ Cliente gRPC inicializado`);
+            console.log(`🔹 AuthService: ${this.authServerAddress}`);
+            console.log(`🔹 TaskService (via NGINX): ${this.taskServerAddress}`);
         } catch (error) {
             console.error('❌ Erro na inicialização do cliente:', error);
             throw error;
         }
     }
 
-    // Promisificar chamadas gRPC
     promisify(client, method) {
         return (request) => {
             return new Promise((resolve, reject) => {
                 client[method](request, (error, response) => {
-                    if (error) {
-                        reject(error);
-                    } else {
+                    if (error) reject(error);
+                    else {
+                        console.log(`✅ [${method}] resposta recebida do servidor gRPC`);
                         resolve(response);
                     }
                 });
@@ -59,125 +57,65 @@ class GrpcClient {
     async login(credentials) {
         const loginPromise = this.promisify(this.authClient, 'Login');
         const response = await loginPromise(credentials);
-        
-        if (response.success) {
-            this.currentToken = response.token;
-            console.log('🔑 Token obtido com sucesso');
-        }
-        
+        if (response.success) this.currentToken = response.token;
         return response;
     }
 
     async createTask(taskData) {
         const createPromise = this.promisify(this.taskClient, 'CreateTask');
-        return await createPromise({
-            token: this.currentToken,
-            ...taskData
-        });
+        return await createPromise({ token: this.currentToken, ...taskData });
     }
 
     async getTasks(filters = {}) {
         const getTasksPromise = this.promisify(this.taskClient, 'GetTasks');
-        return await getTasksPromise({
-            token: this.currentToken,
-            ...filters
-        });
+        return await getTasksPromise({ token: this.currentToken, ...filters });
     }
 
     async getTask(taskId) {
         const getTaskPromise = this.promisify(this.taskClient, 'GetTask');
-        return await getTaskPromise({
-            token: this.currentToken,
-            task_id: taskId
-        });
+        return await getTaskPromise({ token: this.currentToken, task_id: taskId });
     }
 
     async updateTask(taskId, updates) {
         const updatePromise = this.promisify(this.taskClient, 'UpdateTask');
-        return await updatePromise({
-            token: this.currentToken,
-            task_id: taskId,
-            ...updates
-        });
+        return await updatePromise({ token: this.currentToken, task_id: taskId, ...updates });
     }
 
     async deleteTask(taskId) {
         const deletePromise = this.promisify(this.taskClient, 'DeleteTask');
-        return await deletePromise({
-            token: this.currentToken,
-            task_id: taskId
-        });
+        return await deletePromise({ token: this.currentToken, task_id: taskId });
     }
 
     async getStats() {
         const statsPromise = this.promisify(this.taskClient, 'GetTaskStats');
-        return await statsPromise({
-            token: this.currentToken
-        });
+        return await statsPromise({ token: this.currentToken });
     }
 
-    // Demonstração de streaming
     streamTasks(filters = {}) {
-        const stream = this.taskClient.StreamTasks({
-            token: this.currentToken,
-            ...filters
-        });
-
-        stream.on('data', (task) => {
-            console.log('📋 Tarefa recebida via stream:', {
-                id: task.id,
-                title: task.title,
-                completed: task.completed
-            });
-        });
-
-        stream.on('end', () => {
-            console.log('📋 Stream de tarefas finalizado');
-        });
-
-        stream.on('error', (error) => {
-            console.error('❌ Erro no stream de tarefas:', error);
-        });
-
+        const stream = this.taskClient.StreamTasks({ token: this.currentToken, ...filters });
+        stream.on('data', (task) => console.log('📋 Tarefa via stream:', task));
+        stream.on('end', () => console.log('📋 Stream finalizado'));
+        stream.on('error', (err) => console.error('❌ Erro no stream:', err));
         return stream;
     }
 
     streamNotifications() {
-        const stream = this.taskClient.StreamNotifications({
-            token: this.currentToken
-        });
-
-        stream.on('data', (notification) => {
-            const typeMap = ['CREATED', 'UPDATED', 'DELETED', 'COMPLETED'];
-            console.log('🔔 Notificação:', {
-                type: typeMap[notification.type],
-                message: notification.message,
-                task: notification.task ? notification.task.title : null,
-                timestamp: new Date(parseInt(notification.timestamp) * 1000)
-            });
-        });
-
-        stream.on('end', () => {
-            console.log('🔔 Stream de notificações finalizado');
-        });
-
-        stream.on('error', (error) => {
-            console.error('❌ Erro no stream de notificações:', error);
-        });
-
+        const stream = this.taskClient.StreamNotifications({ token: this.currentToken });
+        stream.on('data', (notification) => console.log('🔔 Notificação via stream:', notification));
+        stream.on('end', () => console.log('🔔 Stream de notificações finalizado'));
+        stream.on('error', (err) => console.error('❌ Erro no stream:', err));
         return stream;
     }
 }
 
 // Demonstração de uso
 async function demonstrateGrpcClient() {
-    const client = new GrpcClient();
-    
+    const client = new GrpcClient(); // usa NGINX para TaskService
+
     try {
         await client.initialize();
 
-        // 1. Registrar usuário
-        console.log('\n1. Registrando usuário...');
+        console.log('\n1️⃣ Registrando usuário...');
         const registerResponse = await client.register({
             email: 'usuario@teste.com',
             username: 'usuarioteste',
@@ -187,55 +125,24 @@ async function demonstrateGrpcClient() {
         });
         console.log('Registro:', registerResponse.message);
 
-        // 2. Fazer login
-        console.log('\n2. Fazendo login...');
+        console.log('\n2️⃣ Fazendo login...');
         const loginResponse = await client.login({
             identifier: 'usuario@teste.com',
             password: 'senha123'
         });
         console.log('Login:', loginResponse.message);
 
-        if (!loginResponse.success) {
-            // Tentar login com usuário existente
-            console.log('Tentando login novamente...');
-            await client.login({
-                identifier: 'usuario@teste.com',
-                password: 'senha123'
-            });
-        }
-
-        // 3. Criar tarefa
-        console.log('\n3. Criando tarefa...');
+        console.log('\n3️⃣ Criando tarefa...');
         const createResponse = await client.createTask({
             title: 'Estudar gRPC',
             description: 'Aprender Protocol Buffers e streaming',
-            priority: 2 // HIGH
+            priority: 2
         });
-        console.log('Tarefa criada:', createResponse.message);
+        console.log('Tarefa criada:', createResponse.message, `(atendida pelo servidor ${createResponse.serverPort})`);
 
-        // 4. Listar tarefas
-        console.log('\n4. Listando tarefas...');
+        console.log('\n4️⃣ Listando tarefas...');
         const tasksResponse = await client.getTasks({ page: 1, limit: 10 });
         console.log(`Encontradas ${tasksResponse.tasks.length} tarefas`);
-
-        // 5. Buscar tarefa específica
-        if (tasksResponse.tasks.length > 0) {
-            console.log('\n5. Buscando tarefa específica...');
-            const taskResponse = await client.getTask(tasksResponse.tasks[0].id);
-            console.log('Tarefa encontrada:', taskResponse.task.title);
-        }
-
-        // 6. Estatísticas
-        console.log('\n6. Estatísticas...');
-        const statsResponse = await client.getStats();
-        console.log('Stats:', statsResponse.stats);
-
-        // 7. Demonstrar streaming (comentado para evitar loop infinito)
-        // console.log('\n7. Iniciando stream de notificações...');
-        // const notificationStream = client.streamNotifications();
-        
-        // Manter stream aberto por alguns segundos
-        // setTimeout(() => notificationStream.cancel(), 5000);
 
     } catch (error) {
         console.error('❌ Erro na demonstração:', error);
@@ -243,8 +150,6 @@ async function demonstrateGrpcClient() {
 }
 
 // Executar demonstração se arquivo for executado diretamente
-if (require.main === module) {
-    demonstrateGrpcClient();
-}
+if (require.main === module) demonstrateGrpcClient();
 
 module.exports = GrpcClient;

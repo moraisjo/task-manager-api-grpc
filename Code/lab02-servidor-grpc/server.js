@@ -3,7 +3,8 @@ const ProtoLoader = require('./utils/protoLoader');
 const AuthService = require('./services/AuthService');
 const TaskService = require('./services/TaskService');
 const database = require('./database/database');
-const { safe } = require('./utils/grpc'); // <— adicionar
+const { safe } = require('./utils/grpc');
+const ChatService = require('./services/ChatService'); // + ChatService
 
 /**
  * Servidor gRPC
@@ -12,9 +13,6 @@ const { safe } = require('./utils/grpc'); // <— adicionar
  * - Protocol Buffers para serialização eficiente
  * - HTTP/2 como protocolo de transporte
  * - Streaming bidirecional para tempo real
- * 
- * Segundo Google (2023), gRPC oferece até 60% melhor performance
- * comparado a REST/JSON em cenários de alta carga
  */
 
 class GrpcServer {
@@ -23,6 +21,7 @@ class GrpcServer {
         this.protoLoader = new ProtoLoader();
         this.authService = new AuthService();
         this.taskService = new TaskService();
+        this.chatService = new ChatService();
     }
 
     async initialize() {
@@ -33,6 +32,8 @@ class GrpcServer {
             // Carregar definições dos protobuf
             const authProto = this.protoLoader.loadProto('auth_service.proto', 'auth');
             const taskProto = this.protoLoader.loadProto('task_service.proto', 'tasks');
+            const chatProto = this.protoLoader.loadProto('chat_service.proto', 'chat'); // + chat
+
 
             // Registrar serviços de autenticação
             this.server.addService(authProto.AuthService.service, {
@@ -49,9 +50,13 @@ class GrpcServer {
                 UpdateTask: safe(this.taskService.updateTask.bind(this.taskService)),
                 DeleteTask: safe(this.taskService.deleteTask.bind(this.taskService)),
                 GetTaskStats: safe(this.taskService.getTaskStats.bind(this.taskService)),
-                // Handlers de streaming não usam safe
                 StreamTasks: this.taskService.streamTasks.bind(this.taskService),
                 StreamNotifications: this.taskService.streamNotifications.bind(this.taskService)
+            });
+
+            this.server.addService(chatProto.ChatService.service, {
+                SendMessage: this.chatService.sendMessage.bind(this.chatService),
+                ReceiveMessages: this.chatService.receiveMessages.bind(this.chatService)
             });
 
             console.log('✅ Serviços gRPC registrados com sucesso');
@@ -61,16 +66,17 @@ class GrpcServer {
         }
     }
 
-    async start(port = 50051) {
+    async start() {
         try {
             await this.initialize();
 
+            const port = process.env.GRPC_PORT || 50051; // respeita variável de ambiente
             const serverCredentials = grpc.ServerCredentials.createInsecure();
 
             this.server.bindAsync(`0.0.0.0:${port}`, serverCredentials, (error, boundPort) => {
                 if (error) {
                     console.error('❌ Falha ao iniciar servidor:', error);
-                    return;
+                    process.exit(1);
                 }
 
                 this.server.start();
@@ -105,11 +111,10 @@ class GrpcServer {
     }
 }
 
-// Inicialização
+// Inicialização direta
 if (require.main === module) {
     const server = new GrpcServer();
-    const port = process.env.GRPC_PORT || 50051;
-    server.start(port);
+    server.start();
 }
 
 module.exports = GrpcServer;
