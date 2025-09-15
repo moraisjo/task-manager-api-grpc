@@ -14,7 +14,7 @@ class TaskService {
      * Middleware para validação de token
      */
     async validateToken(token) {
-        const jwtSecret = process.env.JWT_SECRET || 'seu-secret-aqui';
+        const jwtSecret = process.env.JWT_SECRET;
         try {
             return jwt.verify(token, jwtSecret);
         } catch (error) {

@@ -3,6 +3,7 @@ const ProtoLoader = require('./utils/protoLoader');
 const AuthService = require('./services/AuthService');
 const TaskService = require('./services/TaskService');
 const database = require('./database/database');
+const { safe } = require('./utils/grpc'); // <— adicionar
 
 /**
  * Servidor gRPC
@@ -35,19 +36,20 @@ class GrpcServer {
 
             // Registrar serviços de autenticação
             this.server.addService(authProto.AuthService.service, {
-                Register: this.authService.register.bind(this.authService),
-                Login: this.authService.login.bind(this.authService),
-                ValidateToken: this.authService.validateToken.bind(this.authService)
+                Register: safe(this.authService.register.bind(this.authService)),
+                Login: safe(this.authService.login.bind(this.authService)),
+                ValidateToken: safe(this.authService.validateToken.bind(this.authService))
             });
 
             // Registrar serviços de tarefas
             this.server.addService(taskProto.TaskService.service, {
-                CreateTask: this.taskService.createTask.bind(this.taskService),
-                GetTasks: this.taskService.getTasks.bind(this.taskService),
-                GetTask: this.taskService.getTask.bind(this.taskService),
-                UpdateTask: this.taskService.updateTask.bind(this.taskService),
-                DeleteTask: this.taskService.deleteTask.bind(this.taskService),
-                GetTaskStats: this.taskService.getTaskStats.bind(this.taskService),
+                CreateTask: safe(this.taskService.createTask.bind(this.taskService)),
+                GetTasks: safe(this.taskService.getTasks.bind(this.taskService)),
+                GetTask: safe(this.taskService.getTask.bind(this.taskService)),
+                UpdateTask: safe(this.taskService.updateTask.bind(this.taskService)),
+                DeleteTask: safe(this.taskService.deleteTask.bind(this.taskService)),
+                GetTaskStats: safe(this.taskService.getTaskStats.bind(this.taskService)),
+                // Handlers de streaming não usam safe
                 StreamTasks: this.taskService.streamTasks.bind(this.taskService),
                 StreamNotifications: this.taskService.streamNotifications.bind(this.taskService)
             });
