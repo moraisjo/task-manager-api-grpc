@@ -27,7 +27,7 @@ class GrpcClient {
             const credentials = grpc.credentials.createInsecure();
             
             this.authClient = new authProto.AuthService(this.serverAddress, credentials);
-            this.taskClient = new taskProto.TaskService(this.serverAddress, credentials);
+            this.taskClient = new taskProto.TaskService("localhost:5000", credentials);
 
             console.log('✅ Cliente gRPC inicializado');
         } catch (error) {
